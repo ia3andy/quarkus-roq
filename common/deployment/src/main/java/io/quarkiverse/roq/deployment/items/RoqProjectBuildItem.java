@@ -5,8 +5,9 @@ import java.nio.file.Path;
 import java.util.function.Consumer;
 
 import io.quarkiverse.roq.util.PathUtils;
+import io.quarkus.bootstrap.classloading.QuarkusClassLoader;
 import io.quarkus.builder.item.SimpleBuildItem;
-import io.quarkus.runtime.util.ClassPathUtils;
+import io.quarkus.paths.PathVisit;
 
 public final class RoqProjectBuildItem extends SimpleBuildItem {
     private final RoqProject project;
@@ -25,9 +26,9 @@ public final class RoqProjectBuildItem extends SimpleBuildItem {
         return project != null || roqResourceDir != null;
     }
 
-    public void consumePathFromRoqResourceDir(String resource, Consumer<Path> consumer) throws IOException {
+    public void consumePathFromRoqResourceDir(String resource, Consumer<PathVisit> consumer) throws IOException {
         if (roqResourceDir != null) {
-            ClassPathUtils.consumeAsPaths(PathUtils.join(roqResourceDir, resource), consumer);
+            QuarkusClassLoader.visitRuntimeResources(PathUtils.join(roqResourceDir, resource), consumer);
         }
     }
 
@@ -37,9 +38,9 @@ public final class RoqProjectBuildItem extends SimpleBuildItem {
         }
     }
 
-    public void consumeRoqResourceDir(Consumer<Path> consumer) throws IOException {
+    public void consumeRoqResourceDir(Consumer<PathVisit> consumer) throws IOException {
         if (roqResourceDir != null) {
-            ClassPathUtils.consumeAsPaths(roqResourceDir, consumer);
+            QuarkusClassLoader.visitRuntimeResources(roqResourceDir, consumer);
         }
     }
 
