@@ -1,5 +1,7 @@
 package io.quarkiverse.roq.frontmatter.deployment.scan;
 
+import java.util.Objects;
+
 import io.quarkiverse.roq.frontmatter.runtime.config.ConfiguredCollection;
 import io.quarkiverse.roq.frontmatter.runtime.model.PageInfo;
 import io.quarkus.builder.item.MultiBuildItem;
@@ -101,6 +103,23 @@ public final class RoqFrontMatterRawTemplateBuildItem extends MultiBuildItem {
 
     public boolean published() {
         return published;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
+        RoqFrontMatterRawTemplateBuildItem that = (RoqFrontMatterRawTemplateBuildItem) o;
+        return published == that.published && Objects.equals(info, that.info) && Objects.equals(layout, that.layout)
+                && type == that.type && Objects.equals(data, that.data) && Objects.equals(collection, that.collection)
+                && Objects.equals(generatedTemplate, that.generatedTemplate);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(info, layout, type, data, collection, generatedTemplate, published);
     }
 
     public enum TemplateType {

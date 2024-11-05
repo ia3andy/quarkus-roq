@@ -73,7 +73,7 @@ public class RoqFrontMatterScanProcessor {
             BuildProducer<HotDeploymentWatchedFileBuildItem> watch) {
         try {
             dataModifications.sort(Comparator.comparing(RoqFrontMatterDataModificationBuildItem::order));
-            List<RoqFrontMatterRawTemplateBuildItem> items = resolveItems(roqProject,
+            Set<RoqFrontMatterRawTemplateBuildItem> items = resolveItems(roqProject,
                     jackson.getYamlMapper(),
                     siteConfig,
                     markups(markupList),
@@ -118,7 +118,7 @@ public class RoqFrontMatterScanProcessor {
         return id.replace(getLayoutsDir(TemplateType.THEME_LAYOUT), getLayoutsDir(TemplateType.LAYOUT));
     }
 
-    public List<RoqFrontMatterRawTemplateBuildItem> resolveItems(RoqProjectBuildItem roqProject,
+    public Set<RoqFrontMatterRawTemplateBuildItem> resolveItems(RoqProjectBuildItem roqProject,
             YAMLMapper mapper,
             RoqSiteConfig config,
             Map<String, QuteMarkupSection> markups,
@@ -127,28 +127,29 @@ public class RoqFrontMatterScanProcessor {
             BuildProducer<TemplatePathBuildItem> templatePathProducer,
             BuildProducer<TemplateRootBuildItem> templateRootProducer,
             BuildProducer<RoqFrontMatterStaticFileBuildItem> staticFilesProducer) throws IOException {
-        List<RoqFrontMatterRawTemplateBuildItem> items = new ArrayList<>();
-        roqProject.consumeRoqDir(createRoqDirConsumer(mapper, config, markups, watch, dataModifications,
-                staticFilesProducer, templatePathProducer, items));
-        // Scan for layouts in classpath root
-        QuarkusClassLoader.visitRuntimeResources(TEMPLATES_DIR,
-                t -> scanLayouts(mapper, config, markups, watch, dataModifications, items, t.getPath(), TemplateType.LAYOUT));
-        // Scan for themes in classpath root
-        QuarkusClassLoader.visitRuntimeResources(TEMPLATES_DIR,
-                t -> scanLayouts(mapper, config, markups, watch, dataModifications, items, t.getPath(),
-                        TemplateType.THEME_LAYOUT));
-        if (!roqProject.isRoqResourcesInRoot()) {
-            // We need to add the template root
-            templateRootProducer.produce(new TemplateRootBuildItem(PathUtils.join(roqProject.roqResourceDir(), TEMPLATES_DIR)));
-            // Also scan for layouts in roq dir if not root
-            roqProject.consumePathFromRoqResourceDir(TEMPLATES_DIR,
-                    l -> scanLayouts(mapper, config, markups, watch, dataModifications, items, l.getPath(),
-                            TemplateType.LAYOUT));
-        }
+        Set<RoqFrontMatterRawTemplateBuildItem> items = new LinkedHashSet<>();
+        //        roqProject.consumeRoqDir(createRoqDirConsumer(mapper, config, markups, watch, dataModifications,
+        //                staticFilesProducer, templatePathProducer, items));
+        // Scan for layouts & theme-layouts in classpath root
 
-        roqProject.consumePathFromRoqResourceDir(config.contentDir(),
-                l -> scanContent(mapper, config, markups, watch, dataModifications, items, l.getPath()));
-        roqProject.consumePathFromRoqResourceDir(config.staticDir(), l -> scanStatic(config, staticFilesProducer, l.getPath()));
+        QuarkusClassLoader.visitRuntimeResources(TEMPLATES_DIR,
+                t -> {
+                    scanLayouts(mapper, config, markups, watch, dataModifications, items, t.getPath(), TemplateType.LAYOUT);
+                    scanLayouts(mapper, config, markups, watch, dataModifications, items, t.getPath(),
+                            TemplateType.THEME_LAYOUT);
+                });
+        //        if (!roqProject.isRoqResourcesInRoot()) {
+        //            // We need to add the template root
+        //            templateRootProducer.produce(new TemplateRootBuildItem(PathUtils.join(roqProject.roqResourceDir(), TEMPLATES_DIR)));
+        //            // Also scan for layouts in roq dir if not root
+        //            roqProject.consumePathFromRoqResourceDir(TEMPLATES_DIR,
+        //                    l -> scanLayouts(mapper, config, markups, watch, dataModifications, items, l.getPath(),
+        //                            TemplateType.LAYOUT));
+        //        }
+        //
+        //        roqProject.consumePathFromRoqResourceDir(config.contentDir(),
+        //                l -> scanContent(mapper, config, markups, watch, dataModifications, items, l.getPath()));
+        //        roqProject.consumePathFromRoqResourceDir(config.staticDir(), l -> scanStatic(config, staticFilesProducer, l.getPath()));
         return items;
     }
 
@@ -157,7 +158,7 @@ public class RoqFrontMatterScanProcessor {
             BuildProducer<HotDeploymentWatchedFileBuildItem> watch,
             List<RoqFrontMatterDataModificationBuildItem> dataModifications,
             BuildProducer<RoqFrontMatterStaticFileBuildItem> staticFilesProducer,
-            BuildProducer<TemplatePathBuildItem> templatePathProducer, List<RoqFrontMatterRawTemplateBuildItem> items) {
+            BuildProducer<TemplatePathBuildItem> templatePathProducer, Set<RoqFrontMatterRawTemplateBuildItem> items) {
         return root -> {
             if (!Files.isDirectory(root)) {
                 return;
@@ -194,7 +195,7 @@ public class RoqFrontMatterScanProcessor {
     private static void scanContent(YAMLMapper mapper, RoqSiteConfig config,
             Map<String, QuteMarkupSection> markups,
             BuildProducer<HotDeploymentWatchedFileBuildItem> watch,
-            List<RoqFrontMatterDataModificationBuildItem> dataModifications, List<RoqFrontMatterRawTemplateBuildItem> items,
+            List<RoqFrontMatterDataModificationBuildItem> dataModifications, Set<RoqFrontMatterRawTemplateBuildItem> items,
             Path contentDir) {
         if (!Files.isDirectory(contentDir)) {
             return;
@@ -228,7 +229,7 @@ public class RoqFrontMatterScanProcessor {
             Map<String, QuteMarkupSection> markups,
             BuildProducer<HotDeploymentWatchedFileBuildItem> watch,
             List<RoqFrontMatterDataModificationBuildItem> dataModifications,
-            List<RoqFrontMatterRawTemplateBuildItem> items,
+            Set<RoqFrontMatterRawTemplateBuildItem> items,
             Path templatesRoot,
             TemplateType type) {
         final String dir = getLayoutsDir(type);
@@ -301,7 +302,7 @@ public class RoqFrontMatterScanProcessor {
 
     @SuppressWarnings("unchecked")
     private static Consumer<Path> addBuildItem(Path root,
-            List<RoqFrontMatterRawTemplateBuildItem> items,
+            Set<RoqFrontMatterRawTemplateBuildItem> items,
             YAMLMapper mapper,
             RoqSiteConfig config,
             Map<String, QuteMarkupSection> markups,
