@@ -363,6 +363,13 @@ TIP: By default, url will be rendered as the path from the site root. You can al
 
 Sometimes, you want to create a link for a page without holding the variable, in this case, you can use `site.url(relativePath)` which will be automatically resolved from the site root path.
 
+== Updating
+
+To update Roq:
+[source,shell]
+----
+quarkus update
+----
 
 == Testing
 
